@@ -43,6 +43,20 @@ CpuCostModel::CpuCostModel(shared_ptr<ResourceMap_t> resource_map,
       task_map_(task_map),
       knowledge_base_(knowledge_base) {}
 
+void CpuCostModel::AccumulateResourceStats(ResourceDescriptor* accumulator,
+                                            ResourceDescriptor* other) {
+  // Track the aggregate available resources below the machine node
+  ResourceVector* acc_avail = accumulator->mutable_available_resources();
+  ResourceVector* other_avail = other->mutable_available_resources();
+  acc_avail->set_cpu_cores(acc_avail->cpu_cores() + other_avail->cpu_cores());
+  // Running/idle task count
+  accumulator->set_num_running_tasks_below(
+          accumulator->num_running_tasks_below() +
+          other->num_running_tasks_below());
+  accumulator->set_num_slots_below(accumulator->num_slots_below() +
+                                   other->num_slots_below());
+}
+
 ArcDescriptor CpuCostModel::TaskToUnscheduledAgg(TaskID_t task_id) {
   return ArcDescriptor(2560000, 1ULL, 0ULL);
 }
@@ -254,7 +268,7 @@ void CpuCostModel::AddMachine(ResourceTopologyNodeDescriptor* rtnd_ptr) {
   CHECK(rd.type() == ResourceDescriptor::RESOURCE_MACHINE);
   ResourceID_t res_id = ResourceIDFromString(rd.uuid());
   vector<EquivClass_t> machine_ecs;
-  for (uint64_t index = 0; index < FLAGS_max_multi_arcs_for_cpu; ++index) {
+  for (uint64_t index = 0; index < rd.num_slots_below(); ++index) {
     EquivClass_t multi_machine_ec = GetMachineEC(rd.friendly_name(), index);
     machine_ecs.push_back(multi_machine_ec);
     CHECK(InsertIfNotPresent(&ec_to_index_, multi_machine_ec, index));
@@ -315,7 +329,32 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
   CHECK_NOTNULL(other->rd_ptr_);
   ResourceDescriptor* rd_ptr = accumulator->rd_ptr_;
   CHECK_NOTNULL(rd_ptr);
-  if (accumulator->type_ == FlowNodeType::MACHINE) {
+  if (accumulator->type_ == FlowNodeType::PU) {
+    CHECK(other->resource_id_.is_nil());
+    ResourceStats latest_stats;
+    bool have_sample = knowledge_base_->GetLatestStatsForMachine(other->resource_id_,
+                                                                 &latest_stats);
+    if (have_sample) {
+      VLOG(2) << "Updating PU " << accumulator->resource_id_ << "'s "
+              << "resource stats!";
+      // Get the CPU stats for this PU
+      string label = rd_ptr->friendly_name();
+      uint64_t idx = label.find("PU #");
+      if (idx != string::npos) {
+        string core_id_substr = label.substr(idx + 4, label.size() - idx - 4);
+        uint32_t core_id = strtoul(core_id_substr.c_str(), 0, 10);
+        float available_cpu_cores =
+                latest_stats.cpus_stats(core_id).cpu_capacity() *
+                (1.0 - latest_stats.cpus_stats(core_id).cpu_utilization());
+        rd_ptr->mutable_available_resources()->set_cpu_cores(
+                available_cpu_cores);
+      }
+      // Running/idle task count
+      rd_ptr->set_num_running_tasks_below(rd_ptr->current_running_tasks_size());
+      rd_ptr->set_num_slots_below(FLAGS_max_tasks_per_pu);
+      return accumulator;
+    }
+  } else if (accumulator->type_ == FlowNodeType::MACHINE) {
     // Grab the latest available resource sample from the machine
     ResourceStats latest_stats;
     // Take the most recent sample for now
@@ -337,6 +376,9 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
       rd_ptr->mutable_available_resources()->set_cpu_cores(available_cpu_cores);
       rd_ptr->mutable_available_resources()->set_ram_cap(available_ram_cap);
     }
+  }
+  if (accumulator->rd_ptr_ && other->rd_ptr_) {
+    AccumulateResourceStats(accumulator->rd_ptr_, other->rd_ptr_);
   }
 
   return accumulator;
