@@ -321,7 +321,7 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
     if (other->type_ == FlowNodeType::SINK) {
       accumulator->rd_ptr_->set_num_running_tasks_below(static_cast<uint64_t>(
           accumulator->rd_ptr_->current_running_tasks_size()));
-      accumulator->rd_ptr_->set_num_slots_below(FLAGS_max_tasks_per_pu);
+      accumulator->rd_ptr_->set_num_slots_below(100);
     }
     return accumulator;
   }
@@ -349,9 +349,7 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
         rd_ptr->mutable_available_resources()->set_cpu_cores(
                 available_cpu_cores);
       }
-      // Running/idle task count
-      rd_ptr->set_num_running_tasks_below(rd_ptr->current_running_tasks_size());
-      rd_ptr->set_num_slots_below(FLAGS_max_tasks_per_pu);
+
       return accumulator;
     }
   } else if (accumulator->type_ == FlowNodeType::MACHINE) {
