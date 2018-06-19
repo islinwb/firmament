@@ -321,7 +321,7 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
     if (other->type_ == FlowNodeType::SINK) {
       accumulator->rd_ptr_->set_num_running_tasks_below(static_cast<uint64_t>(
           accumulator->rd_ptr_->current_running_tasks_size()));
-      accumulator->rd_ptr_->set_num_slots_below(FLAGS_max_tasks_per_pu);
+      accumulator->rd_ptr_->set_num_slots_below(accumulator->rd_ptr_->max_pods());
     }
     return accumulator;
   }
@@ -337,7 +337,7 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
     if (have_sample) {
       VLOG(2) << "Updating PU " << accumulator->resource_id_ << "'s "
               << "resource stats!";
-      rd_ptr->set_num_slots_below(rd_ptr->max_pods());
+      //rd_ptr->set_num_slots_below(rd_ptr->max_pods());
       // Get the CPU stats for this PU
       string label = rd_ptr->friendly_name();
       uint64_t idx = label.find("PU #");
