@@ -29,6 +29,7 @@
 #include "scheduling/flow/flow_graph_manager.h"
 #include "scheduling/knowledge_base.h"
 #include "scheduling/label_utils.h"
+#include "sim/simulator_bridge.h"
 
 DEFINE_uint64(max_multi_arcs_for_cpu, 50, "Maximum number of multi-arcs.");
 
@@ -822,6 +823,8 @@ void CpuCostModel::AddMachine(ResourceTopologyNodeDescriptor* rtnd_ptr) {
   CHECK(rd.type() == ResourceDescriptor::RESOURCE_MACHINE);
   ResourceID_t res_id = ResourceIDFromString(rd.uuid());
   vector<EquivClass_t> machine_ecs;
+    LOG(INFO) << "res_id: " << res_id <<", rd.num_slots_below(): " << rd.num_slots_below()
+              << ", rd.max_pods(): " << rd.max_pods();
   for (uint64_t index = 0; index < rd.num_slots_below(); ++index) {
     EquivClass_t multi_machine_ec = GetMachineEC(rd.friendly_name(), index);
     machine_ecs.push_back(multi_machine_ec);
@@ -897,8 +900,15 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
             available_cpu_cores);
       }
       // Running/idle task count
+      LOG(INFO) << "Running/idle task count+++++rd_ptr->num_running_tasks_below():" << rd_ptr->num_running_tasks_below()
+                << ", rd_ptr->current_running_tasks_size(): " << rd_ptr->current_running_tasks_size();
       rd_ptr->set_num_running_tasks_below(rd_ptr->current_running_tasks_size());
-      rd_ptr->set_num_slots_below(rd_ptr->max_pods());
+      ResourceDescriptor* machine_rd_ptr = accumulator->rd_ptr_;
+      auto iter = sim::machine_res_id_pus_.find(machine_res_id);
+      LOG(INFO) << "Running/idle task count+++++ machine_rd_ptr->num_slots_below: "  << machine_rd_ptr->num_slots_below()
+                << ", machine_rd_ptr->max_pods():" << machine_rd_ptr->max_pods() << ", machine_res_id:" << machine_res_id
+                << "machine_res_id_pus_:" << iter->second->max_pods() << ", iter:" << iter;
+      rd_ptr->set_num_slots_below(machine_rd_ptr->max_pods());
       return accumulator;
     }
   } else if (accumulator->type_ == FlowNodeType::MACHINE) {
