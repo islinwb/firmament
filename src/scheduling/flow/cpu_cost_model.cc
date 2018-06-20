@@ -822,6 +822,8 @@ void CpuCostModel::AddMachine(ResourceTopologyNodeDescriptor* rtnd_ptr) {
   CHECK(rd.type() == ResourceDescriptor::RESOURCE_MACHINE);
   ResourceID_t res_id = ResourceIDFromString(rd.uuid());
   vector<EquivClass_t> machine_ecs;
+    LOG(INFO) << "rd.num_slots_below(): " << rd.num_slots_below()
+              << ", rd.max_pods(): " << rd.max_pods();
   for (uint64_t index = 0; index < rd.num_slots_below(); ++index) {
     EquivClass_t multi_machine_ec = GetMachineEC(rd.friendly_name(), index);
     machine_ecs.push_back(multi_machine_ec);
@@ -897,8 +899,13 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
             available_cpu_cores);
       }
       // Running/idle task count
+      LOG(INFO) << "Running/idle task count+++++rd_ptr->num_running_tasks_below():" << rd_ptr->num_running_tasks_below()
+                << ", rd_ptr->current_running_tasks_size(): " << rd_ptr->current_running_tasks_size();
       rd_ptr->set_num_running_tasks_below(rd_ptr->current_running_tasks_size());
-      rd_ptr->set_num_slots_below(rd_ptr->max_pods());
+      ResourceDescriptor* oth_rd_ptr = accumulator->rd_ptr_;
+      LOG(INFO) << "Running/idle task count+++++oth_rd_ptr->num_slots_below: "  <<  oth_rd_ptr->num_slots_below()
+                << ", oth_rd_ptr->max_pods():" << oth_rd_ptr->max_pods();
+      rd_ptr->set_num_slots_below(oth_rd_ptr->max_pods());
       return accumulator;
     }
   } else if (accumulator->type_ == FlowNodeType::MACHINE) {
