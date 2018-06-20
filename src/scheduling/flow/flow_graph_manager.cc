@@ -139,6 +139,7 @@ void FlowGraphManager::AddResourceTopologyDFS(
   // PU node.
   // 2) Add the node's subtree.
   // 3) Connect the node to its parent.
+  LOG(INFO) << "=======FlowGraphManager::AddResourceTopologyDFS";
   bool added_new_res_node = false;
   CHECK_NOTNULL(rtnd_ptr);
   ResourceDescriptor* rd_ptr = rtnd_ptr->mutable_resource_desc();
@@ -151,7 +152,8 @@ void FlowGraphManager::AddResourceTopologyDFS(
     if (res_node->type_ == FlowNodeType::PU) {
       UpdateResToSinkArc(res_node);
       if (rd_ptr->num_slots_below() == 0) {
-        rd_ptr->set_num_slots_below(FLAGS_max_tasks_per_pu);
+        LOG(INFO) << "=======rtnd_ptr->resource_desc().max_pods(): " << rtnd_ptr->resource_desc().max_pods();
+        rd_ptr->set_num_slots_below(rtnd_ptr->resource_desc().max_pods());
         if (rd_ptr->num_running_tasks_below() == 0) {
           rd_ptr->set_num_running_tasks_below(
               static_cast<uint64_t>(rd_ptr->current_running_tasks_size()));
@@ -950,11 +952,14 @@ void FlowGraphManager::UpdateResourceTopology(
 
 void FlowGraphManager::UpdateResourceTopologyDFS(
     ResourceTopologyNodeDescriptor* rtnd_ptr) {
+  LOG(INFO) << "========FlowGraphManager::UpdateResourceTopologyDFS";
   CHECK_NOTNULL(rtnd_ptr);
   ResourceDescriptor* rd_ptr = rtnd_ptr->mutable_resource_desc();
   if (rd_ptr->type() == ResourceDescriptor::RESOURCE_PU) {
     // Base case.
-    rd_ptr->set_num_slots_below(FLAGS_max_tasks_per_pu);
+    LOG(INFO) << "=====rd_ptr->num_slots_below(): " << rd_ptr->num_slots_below() << "+++rd_ptr->max_pods():"
+              << rd_ptr->max_pods();
+    rd_ptr->set_num_slots_below(rd_ptr->max_pods());
     rd_ptr->set_num_running_tasks_below(
         static_cast<uint64_t>(rd_ptr->current_running_tasks_size()));
   } else {
