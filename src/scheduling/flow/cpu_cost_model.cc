@@ -822,7 +822,7 @@ void CpuCostModel::AddMachine(ResourceTopologyNodeDescriptor* rtnd_ptr) {
   CHECK(rd.type() == ResourceDescriptor::RESOURCE_MACHINE);
   ResourceID_t res_id = ResourceIDFromString(rd.uuid());
   vector<EquivClass_t> machine_ecs;
-  for (uint64_t index = 0; index < FLAGS_max_multi_arcs_for_cpu; ++index) {
+  for (uint64_t index = 0; index < rd.num_slots_below(); ++index) {
     EquivClass_t multi_machine_ec = GetMachineEC(rd.friendly_name(), index);
     machine_ecs.push_back(multi_machine_ec);
     CHECK(InsertIfNotPresent(&ec_to_index_, multi_machine_ec, index));
@@ -898,7 +898,7 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
       }
       // Running/idle task count
       rd_ptr->set_num_running_tasks_below(rd_ptr->current_running_tasks_size());
-      rd_ptr->set_num_slots_below(FLAGS_max_tasks_per_pu);
+      rd_ptr->set_num_slots_below(rd_ptr->max_pods());
       return accumulator;
     }
   } else if (accumulator->type_ == FlowNodeType::MACHINE) {
