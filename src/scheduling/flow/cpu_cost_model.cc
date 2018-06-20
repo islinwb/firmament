@@ -29,6 +29,7 @@
 #include "scheduling/flow/flow_graph_manager.h"
 #include "scheduling/knowledge_base.h"
 #include "scheduling/label_utils.h"
+#include "sim/simulator_bridge.h"
 
 DEFINE_uint64(max_multi_arcs_for_cpu, 50, "Maximum number of multi-arcs.");
 
@@ -822,7 +823,9 @@ void CpuCostModel::AddMachine(ResourceTopologyNodeDescriptor* rtnd_ptr) {
   CHECK(rd.type() == ResourceDescriptor::RESOURCE_MACHINE);
   ResourceID_t res_id = ResourceIDFromString(rd.uuid());
   vector<EquivClass_t> machine_ecs;
-  for (uint64_t index = 0; index < rd.num_slots_below(); ++index) {
+    LOG(INFO) << "res_id: " << res_id <<", rd.num_slots_below(): " << rd.num_slots_below()
+              << ", rd.max_pods(): " << rd.max_pods();
+  for (uint64_t index = 0; index < rd.max_pods(); ++index) {
     EquivClass_t multi_machine_ec = GetMachineEC(rd.friendly_name(), index);
     machine_ecs.push_back(multi_machine_ec);
     CHECK(InsertIfNotPresent(&ec_to_index_, multi_machine_ec, index));
@@ -898,7 +901,12 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
       }
       // Running/idle task count
       rd_ptr->set_num_running_tasks_below(rd_ptr->current_running_tasks_size());
-      rd_ptr->set_num_slots_below(rd_ptr->max_pods());
+      ResourceDescriptor* machine_rd_ptr = accumulator->rd_ptr_;
+      ResourceStatus* m_rs = FindPtrOrNull(*resource_map_, machine_res_id);
+      auto m_rtnd = m_rs->mutable_topology_node();
+      LOG(INFO) << "Running/idle task count+++++ m_rtnd->resource_desc().num_slots_below(): "<< m_rtnd->resource_desc().num_slots_below()
+                << ", m_rtnd->resource_desc().max_pods():" << m_rtnd->resource_desc().max_pods();
+      rd_ptr->set_num_slots_below(m_rtnd->resource_desc().max_pods());
       return accumulator;
     }
   } else if (accumulator->type_ == FlowNodeType::MACHINE) {
@@ -921,6 +929,7 @@ FlowGraphNode* CpuCostModel::GatherStats(FlowGraphNode* accumulator,
 }
 
 void CpuCostModel::PrepareStats(FlowGraphNode* accumulator) {
+  LOG(INFO) << "=======CpuCostModel::PrepareStats()";
   if (!accumulator->IsResourceNode()) {
     return;
   }
