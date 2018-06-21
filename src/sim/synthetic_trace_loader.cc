@@ -78,6 +78,7 @@ void SyntheticTraceLoader::GetNumberOfSlots(
     const ResourceTopologyNodeDescriptor& rtnd,
     uint64_t* num_slots) {
   if (rtnd.resource_desc().type() == ResourceDescriptor::RESOURCE_PU) {
+    LOG(INFO) << "=======SyntheticTraceLoader::GetNumberOfSlots";
     *num_slots = *num_slots + FLAGS_max_tasks_per_pu;
   }
 }
